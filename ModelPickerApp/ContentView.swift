@@ -9,6 +9,10 @@ import SwiftUI
 import RealityKit
 
 struct ContentView : View {
+    @State private var isPlacementEnabled = false
+    @State private var selectedModel: String?
+    @State private var modelConfirmForPlacement: String?
+    
     private var models: [String] = {
         // モデルのファイル名を動的に取得する
         let fileManager = FileManager.default
@@ -28,16 +32,19 @@ struct ContentView : View {
     
     var body: some View {
         ZStack(alignment: .bottom) {
-            ARViewContainer().edgesIgnoringSafeArea(.all)
+            ARViewContainer(modelConfirmedForPlacement: $modelConfirmForPlacement).edgesIgnoringSafeArea(.all)
             
-             ModelPickerView(models: models)
-            
-            PlacementButtonsView()
+            if isPlacementEnabled {
+                PlacementButtonsView(isPlacementEnabled: $isPlacementEnabled, selectedModel: $selectedModel, modelConfirmedForPlacement: $modelConfirmForPlacement)
+            } else {
+                ModelPickerView(isPlacementEnabled: $isPlacementEnabled, selectedModel: $selectedModel, models: models)
+            }
         }
     }
 }
 
 struct ARViewContainer: UIViewRepresentable {
+    @Binding var modelConfirmedForPlacement: String?
     
     func makeUIView(context: Context) -> ARView {
         
@@ -47,11 +54,22 @@ struct ARViewContainer: UIViewRepresentable {
         
     }
     
-    func updateUIView(_ uiView: ARView, context: Context) {}
+    func updateUIView(_ uiView: ARView, context: Context) {
+        if let modelName = modelConfirmedForPlacement {
+            print("DEBUG: シーンにモデルを追加 - \(modelName)")
+            
+            DispatchQueue.main.async {
+                modelConfirmedForPlacement = nil
+            }
+        }
+    }
     
 }
 
 struct ModelPickerView: View {
+    @Binding var isPlacementEnabled: Bool
+    @Binding var selectedModel: String?
+    
     var models: [String]
     
     var body: some View {
@@ -61,6 +79,10 @@ struct ModelPickerView: View {
                     let model = models[index]
                     Button {
                         print("DEBUG: モデル「\(model)」を選択")
+                        
+                        selectedModel = model
+                        
+                        isPlacementEnabled = true
                     } label: {
                         Image(uiImage: UIImage(named: model)!)
                             .resizable()
@@ -78,11 +100,17 @@ struct ModelPickerView: View {
 }
 
 struct PlacementButtonsView: View {
+    @Binding var isPlacementEnabled: Bool
+    @Binding var selectedModel: String?
+    @Binding var modelConfirmedForPlacement: String?
+    
     var body: some View {
         HStack {
             // キャンセルボタン
             Button {
                 print("DEBUG: モデルの配置をキャンセル")
+                
+                resetPlacementParameters()
             } label: {
                 Image(systemName: "xmark")
                     .frame(width: 60, height: 60)
@@ -95,6 +123,10 @@ struct PlacementButtonsView: View {
             // 確定ボタン
             Button {
                 print("DEBUG: モデルの配置を確定")
+                
+                modelConfirmedForPlacement = selectedModel
+                
+                resetPlacementParameters()
             } label: {
                 Image(systemName: "checkmark")
                     .frame(width: 60, height: 60)
@@ -104,6 +136,11 @@ struct PlacementButtonsView: View {
                     .padding(20)
             }
         }
+    }
+    
+    func resetPlacementParameters() {
+        isPlacementEnabled = false
+        selectedModel = nil
     }
 }
 
